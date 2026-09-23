@@ -417,11 +417,11 @@
           <div class="to"><img src="images/logo.png" alt="">to @s3lfmade_prii</div>
           <div class="dm" id="dm"></div>
           <div class="actions">
-            <button class="btn" type="button" id="copy">Copy message</button>
-            <a class="btn ghost" href="https://ig.me/m/s3lfmade_prii" target="_blank" rel="noopener">Open Instagram DM</a>
+            <a class="btn" id="sendDm" href="https://ig.me/m/s3lfmade_prii" target="_blank" rel="noopener">Copy message and open DM</a>
+            <button class="btn ghost" type="button" id="copy">Just copy</button>
           </div>
           <p class="toast" id="toast"></p>
-          <p class="hint">Copy the message, open the chat, and paste it in.</p>
+          <p class="hint">Instagram does not let websites type into your chat, so this copies your message for you. When the chat opens, tap the message box and choose Paste.</p>
         </div>
       </div>
     </div>
@@ -619,23 +619,40 @@
     m += `\n\nCould you tell me the price and how long it would take?`;
     return m;
   };
-  const refresh = () => { dm.textContent = buildMsg(); };
+  const refresh = () => {
+    const msg = buildMsg();
+    dm.textContent = msg;
+    // Some Instagram versions pick up ?text= and fill the chat box; the copied message covers the rest
+    document.getElementById("sendDm").href = "https://ig.me/m/s3lfmade_prii?text=" + encodeURIComponent(msg);
+  };
   document.getElementById("order").addEventListener("input", refresh);
   document.getElementById("order").addEventListener("submit", e => e.preventDefault());
   drawWheel();
   showPick();
 
   const toast = document.getElementById("toast");
-  document.getElementById("copy").addEventListener("click", () => {
+  const selectMsg = () => {
+    const r = document.createRange(); r.selectNodeContents(dm);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  };
+  // Older phones lack the clipboard API; fall back to a hidden textarea and execCommand
+  const legacyCopy = text => {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+    ta.remove(); return ok;
+  };
+  const copyMsg = (okText, failText) => {
     const text = buildMsg();
-    const done = () => { toast.textContent = "Copied. Now paste it into the Instagram chat."; };
-    const fallback = () => {
-      const r = document.createRange(); r.selectNodeContents(dm);
-      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-      toast.textContent = "Message selected. Copy it with your keyboard or long press.";
-    };
-    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
-  });
+    const fail = () => { if (legacyCopy(text)) toast.textContent = okText; else { selectMsg(); toast.textContent = failText; } };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => { toast.textContent = okText; }, fail);
+    else fail();
+  };
+  document.getElementById("copy").addEventListener("click", () =>
+    copyMsg("Copied. Open the chat with Prii and paste it in.", "Message selected. Copy it with your keyboard or a long press."));
+  document.getElementById("sendDm").addEventListener("click", () =>
+    copyMsg("Copied. In the chat that just opened, tap the message box and choose Paste.", "Copy the message above with a long press, then paste it in the chat."));
 </script>
 
 </body>
